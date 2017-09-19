@@ -8,10 +8,10 @@ Catalog.java:
 Bufferpool.java:
 1.	Considered “HashMap” for storing pageId and Page, which helps in caching of the pages.
 HeapPageId & RecordId:
-1.	Used in built “Objects.hash()” function to create hashCode. We can create our own hash function, instead we chose to use in built function.
+1.	Used in built “Objects.hash()” function to create hashCode. We can create our own hash function, instead we chose to use the in-built function.
 HeapPage.java:
-1.	In isSlotUsed function, 
+1.	In isSlotUsed function, since the slot information is stored in the header byte in a big Endian format, we used the left shift operator and shifted the bit by an index number of places, to find if the index is filled or not.
 HeapFile.java:
-1.	In iretator function, as we need to return an instance of DbFileIterator which is an interface, we have created a new class implementing DbFileIterator. Then implemented methods by overriding with the information we have in HeapFile.
+1.	In iterator function, as we need to return an instance of DbFileIterator which is an interface, we have created a new class implementing DbFileIterator. Then implemented methods by overriding with the information we have in HeapFile.
 Time spent:
-Overall, we have spend around 15 to 18 hours for this lab. 
+Overall, we have spent around 15 to 18 hours for this lab. 
