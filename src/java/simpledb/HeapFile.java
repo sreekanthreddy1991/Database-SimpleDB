@@ -133,12 +133,12 @@ public class HeapFile implements DbFile {
         private HeapFile heapFile;
         private TransactionId transactionId;
         private Iterator<Tuple> iterator;
-        private int currentPage;
+        private Integer currentPage;
 
         public HeapFileIterator(HeapFile heapFile, TransactionId tId){
             this.heapFile = heapFile;
             transactionId = tId;
-            currentPage = 0;
+            currentPage = null;
             iterator = null;
         }
 
@@ -151,18 +151,20 @@ public class HeapFile implements DbFile {
 
         @Override
         public boolean hasNext() throws DbException, TransactionAbortedException {
-            if(iterator==null){
+            if(currentPage==null){
                 return false;
             } else if(iterator.hasNext()){
                 return true;
             } else {
-                currentPage++;
-                if(currentPage < heapFile.numPages()){
-                    iterator = tupleIterator(currentPage);
-                    return iterator.hasNext();
-                } else {
-                    return false;
+                while (currentPage < numPages() - 1) {
+                    if (iterator.hasNext()) {
+                        return true;
+                    } else {
+                        currentPage += 1;
+                        iterator = tupleIterator(currentPage);
+                    }
                 }
+                return iterator.hasNext();
             }
         }
 
@@ -177,14 +179,14 @@ public class HeapFile implements DbFile {
 
         @Override
         public void rewind() throws DbException, TransactionAbortedException {
-            currentPage = 0;
-            tupleIterator(currentPage);
+            close();
+            open();
         }
 
         @Override
         public void close() {
             iterator = null;
-            currentPage = 0;
+            currentPage = null;
         }
 
         public Iterator<Tuple> tupleIterator(int pageNo) throws TransactionAbortedException, DbException {
