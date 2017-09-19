@@ -296,7 +296,14 @@ public class HeapPage implements Page {
      */
     public boolean isSlotUsed(int i) {
         // some code goes here
-
+        if (i < numSlots) {
+            int hdNo = (i / 8);
+            if(hdNo >= getHeaderSize()){
+                return false;
+            }
+            int offset = i % 8;
+            return (header[hdNo] & (0x1 << offset)) != 0;
+        }
         return false;
     }
 
