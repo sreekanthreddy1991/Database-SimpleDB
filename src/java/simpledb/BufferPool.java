@@ -28,6 +28,8 @@ public class BufferPool {
     constructor instead. */
     public static final int DEFAULT_PAGES = 50;
 
+    private int numPages = DEFAULT_PAGES;
+
     private Map<PageId, Page> pageMap;
 
     /**
@@ -37,7 +39,7 @@ public class BufferPool {
      */
     public BufferPool(int numPages) {
         // some code goes here
-        pageSize = numPages;
+        this.numPages = numPages;
         pageMap = new HashMap();
     }
     
@@ -76,7 +78,7 @@ public class BufferPool {
         if(pageMap.containsKey(pid)){
             return pageMap.get(pid);
         } else {
-            if(pageMap.size() < pageSize) {
+            if(pageMap.size() < numPages) {
                 Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
                 pageMap.put(pid, page);
                 return page;

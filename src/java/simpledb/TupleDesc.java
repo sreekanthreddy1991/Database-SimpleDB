@@ -66,11 +66,12 @@ public class TupleDesc implements Serializable {
     public TupleDesc(Type[] typeAr, String[] fieldAr) {
         if(typeAr.length == 0 || typeAr.length != fieldAr.length){
             System.out.println("type and field array do not have same number of fields");
-        }
-        // some code goes here
-        tdItemsList = new TDItem[typeAr.length];
-        for(int i=0; i< tdItemsList.length; i++){
-            tdItemsList[i] = new TDItem(typeAr[i], fieldAr[i]);
+        } else {
+            // some code goes here
+            tdItemsList = new TDItem[typeAr.length];
+            for(int i=0; i< tdItemsList.length; i++){
+                tdItemsList[i] = new TDItem(typeAr[i], fieldAr[i]);
+            }
         }
     }
 
@@ -209,9 +210,9 @@ public class TupleDesc implements Serializable {
     public boolean equals(Object o) {
         // some code goes here
         boolean isEqual = false;
-        if(o == null)
+        if(o == null) {
             isEqual = false;
-        if(o instanceof TupleDesc){
+        } else if(o instanceof TupleDesc){
             TupleDesc newTupleDesc = (TupleDesc) o;
             if(newTupleDesc.numFields()!= this.numFields()){
                 isEqual = false;

@@ -1,0 +1,17 @@
+TupleDesc.java:
+1.	Chose tdItems variable type as array, as we know the length of the items while creating the new tuple descriptor in constructor.
+2.	In the constructor, we assumed that the type array and string array are of equal lengths and greater than 0. Elements inside field array can be null.
+Catalog.java:
+1.	Created a separate class “Table” to store table related fields such as file, name and primary key name. This helps in easy understanding of the code.
+2.	Considered variable type as “HashMap” to store table name as key, newly created table as value.
+3.	Considered another “HashMap” to match file ids with table name, to make the implementation simpler. We can do this with one map also, but having 2 maps save time.
+Bufferpool.java:
+1.	Considered “HashMap” for storing pageId and Page, which helps in caching of the pages.
+HeapPageId & RecordId:
+1.	Used in built “Objects.hash()” function to create hashCode. We can create our own hash function, instead we chose to use the in-built function.
+HeapPage.java:
+1.	In isSlotUsed function, since the slot information is stored in the header byte in a big Endian format, we used the left shift operator and shifted the bit by an index number of places, to find if the index is filled or not. This concept was a little confusing among other implementations and the canvas discussions helped us in figuring out the header structure.
+HeapFile.java:
+1.	In iterator function, as we need to return an instance of DbFileIterator which is an interface, we have created a new class implementing DbFileIterator. Then implemented methods by overriding with the information we have in HeapFile.
+Time spent:
+Overall, we have spent around 15 to 18 hours for this lab. 

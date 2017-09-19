@@ -105,7 +105,14 @@ public class Tuple implements Serializable {
      */
     public String toString() {
         // some code goes here
-        throw new UnsupportedOperationException("Implement this");
+        String content = "";
+        Iterator<Field> iterator = fieldList.iterator();
+        Field field;
+        while(iterator.hasNext()){
+            field = iterator.next();
+            content = content + "\t" + field.toString();
+        }
+        return content;
     }
 
     /**
