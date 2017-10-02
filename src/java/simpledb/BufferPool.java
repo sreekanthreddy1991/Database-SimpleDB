@@ -30,17 +30,118 @@ public class BufferPool {
 
     private int numPages = DEFAULT_PAGES;
 
-    private Map<PageId, Page> pageMap;
+    class Node{
+        PageId key;
+        Page page;
+        Node pre;
+        Node next;
 
+        public Node(PageId key, Page value){
+            this.key = key;
+            this.page = value;
+        }
+    }
+
+    public class PageBufferPool {
+        int capacity;
+        HashMap<PageId, Node> map = new HashMap<PageId, Node>();
+        Node head=null;
+        Node end=null;
+
+        public PageBufferPool(int capacity) {
+            this.capacity = capacity;
+        }
+
+        public Page get(PageId key) {
+            if(map.containsKey(key)){
+                Node n = map.get(key);
+                remove(n);
+                setHead(n);
+                return n.page;
+            }
+
+            return null;
+        }
+
+        public boolean containsKey(PageId pageId){
+            return map.containsKey(pageId);
+        }
+
+        public void remove(Node n){
+            if(n.pre!=null){
+                n.pre.next = n.next;
+            }else{
+                head = n.next;
+            }
+
+            if(n.next!=null){
+                n.next.pre = n.pre;
+            }else{
+                end = n.pre;
+            }
+
+        }
+
+        public void setHead(Node n){
+            n.next = head;
+            n.pre = null;
+
+            if(head!=null)
+                head.pre = n;
+
+            head = n;
+
+            if(end ==null)
+                end = head;
+        }
+
+        public void set(PageId key, Page value) {
+            if(map.containsKey(key)){
+                Node old = map.get(key);
+                old.page = value;
+                remove(old);
+                setHead(old);
+            }else{
+                Node created = new Node(key, value);
+                if(map.size()>=capacity){
+                    map.remove(end.key);
+                    remove(end);
+                    setHead(created);
+
+                }else{
+                    setHead(created);
+                }
+
+                map.put(key, created);
+            }
+        }
+
+        public Page evictPage(){
+            int bufferSize = map.size();
+            if(bufferSize > 0 && bufferSize == this.capacity){
+                Map.Entry<PageId, Node> entry = map.entrySet().iterator().next();
+                PageId key = entry.getKey();
+                Node oldPage = entry.getValue();
+                remove(oldPage);
+                return oldPage.page;
+            }
+            return null;
+        }
+
+        public int size(){
+            return map.size();
+        }
+    }
+
+    private PageBufferPool pageBufferPool;
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
      * @param numPages maximum number of pages in this buffer pool.
      */
     public BufferPool(int numPages) {
-        // some code goes here
         this.numPages = numPages;
-        pageMap = new HashMap();
+        pageBufferPool = new PageBufferPool(numPages);
     }
     
     public static int getPageSize() {
@@ -74,17 +175,15 @@ public class BufferPool {
      */
     public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
         throws TransactionAbortedException, DbException {
-        // some code goes here
-        if(pageMap.containsKey(pid)){
-            return pageMap.get(pid);
+        if(pageBufferPool.containsKey(pid)){
+            return pageBufferPool.get(pid);
         } else {
-            if(pageMap.size() < numPages) {
-                Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
-                pageMap.put(pid, page);
-                return page;
-            } else {
-                throw new DbException("Buffer pool is full");
+            Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
+            if(pageBufferPool.size() >= numPages) {
+                evictPage();
             }
+            pageBufferPool.set(pid, page);
+            return page;
         }
     }
 
@@ -201,8 +300,12 @@ public class BufferPool {
      * @param pid an ID indicating the page to flush
      */
     private synchronized  void flushPage(PageId pid) throws IOException {
-        // some code goes here
-        // not necessary for lab1
+        if(pageBufferPool.containsKey(pid)){
+            Page oldPage = pageBufferPool.get(pid);
+            if(oldPage.isDirty()!= null){
+                Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(oldPage);
+            }
+        }
     }
 
     /** Write all pages of the specified transaction to disk.
@@ -217,8 +320,15 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized  void evictPage() throws DbException {
-        // some code goes here
-        // not necessary for lab1
+        Page oldPage = pageBufferPool.evictPage();
+        PageId oldPid = oldPage.getId();
+        try {
+            if(oldPage != null){
+               flushPage(oldPid);
+            }
+        } catch (IOException e) {
+            throw new DbException("Error while flushing a page with id " + oldPid);
+        }
     }
 
 }
