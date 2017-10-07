@@ -208,7 +208,7 @@ public class BTreeFile implements DbFile {
 				throw new DbException("Internal Page is Empty");
 			}
 			if(f!=null){
-				while(f.compare(Op.GREATER_THAN_OR_EQ, currentEntry.getKey()) && entries.hasNext()){
+				while(f.compare(Op.GREATER_THAN, currentEntry.getKey()) && entries.hasNext()){
 					currentEntry = entries.next();
 				}
 				if(f.compare(Op.LESS_THAN_OR_EQ, currentEntry.getKey())){
