@@ -2,10 +2,15 @@ BufferPool.java:
 1. Instead of the HashMap we chose in lab_1, we replaced it with a double linked list to cache the pages. It makes it easier
 to implement LRU policy. It is difficult to maintain visiting count in HashMap. But we can easily shift nodes around in a
 linked list in constant time.
-2. We have consider Least Recently Used policy while evicting a page from buffer pool.
+2. We have considered Least Recently Used policy while evicting a page from buffer pool.
 BTreeFile.java:
-2. While implementing insertion, we inserted data which is less than or equal to key value in the left child, greater than key value
+1. While implementing search, we searched for data which is less than or equal to key value in the left child, greater than key value
 in the right child of the parent data entry.
+2. In splitLeafpage, for 2n+1 tuples an n:n+1 split is done and for 2n tuples an n:n split is done, with the last element of the left sibling being copied up to the parent.
+The last element has been copied to maintain the condition of checking less than or equal to, while search.
+3. Reverse iterator is used to identify tuples to be moved to the new leaf page and tuples are pushed into a stack data structure from the original page, and popped into a new
+leaf page. Deletion is always done before insertion since, the page id of the tuple changes if insertion is done first, making it impossible to delete later.
+4. For duplicate entries, the left most leaf page is always returned and sequential scan ensues to find out all elements.
 
-We faced little difficulty while trying to figure out a way to implement LCU with hash map. Then after some research we decided to
+We faced a little difficulty while trying to figure out a way to implement LCU with hash map. Then after some research we decided to
 go with double linked list.
