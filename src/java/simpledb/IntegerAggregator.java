@@ -1,11 +1,22 @@
 package simpledb;
 
+import java.util.*;
+
 /**
  * Knows how to compute some aggregate over a set of IntFields.
  */
 public class IntegerAggregator implements Aggregator {
 
     private static final long serialVersionUID = 1L;
+
+    private int gbField, aField;
+    private Type gbFieldType;
+    private Aggregator.Op op;
+    private ArrayList<Tuple> aggTups = new ArrayList<Tuple>();
+    private HashSet<Field> elementsInAggTups = new HashSet<Field>();
+    private HashMap<Field, Integer> countMap = new HashMap<Field, Integer>();
+    private HashMap<Field, Integer> sumMap = new HashMap<Field, Integer>();
+    private TupleDesc td;
 
     /**
      * Aggregate constructor
@@ -23,7 +34,18 @@ public class IntegerAggregator implements Aggregator {
      */
 
     public IntegerAggregator(int gbfield, Type gbfieldtype, int afield, Op what) {
-        // some code goes here
+        this.gbField = gbfield;
+        this.gbFieldType = gbfieldtype;
+        this.aField = afield;
+        this.op = what;
+        if(gbfield != -1){
+            Type[] types = new Type[] {Type.INT_TYPE, Type.INT_TYPE};
+            td = new TupleDesc(types);
+        }
+        else{
+            Type[] types = new Type[] {Type.INT_TYPE};
+            td = new TupleDesc(types);
+        }
     }
 
     /**
@@ -34,7 +56,42 @@ public class IntegerAggregator implements Aggregator {
      *            the Tuple containing an aggregate field and a group-by field
      */
     public void mergeTupleIntoGroup(Tuple tup) {
-        // some code goes here
+        Iterator<Tuple> it = aggTups.iterator();
+
+        while (it.hasNext()) {
+            Tuple t = it.next();
+            if(gbField == -1) {
+                int val3 = ( (IntField) t.getField(0) ).getValue();
+                int aggValue = AggValue(val3, tup);
+                IntField newField = new IntField(aggValue);
+                t.setField(0, newField);
+                return;
+            }
+
+            int val1 = ((IntField) t.getField(0)).getValue();
+            int val2 = ((IntField) tup.getField(gbField)).getValue();
+            if (val1 == val2) {
+                int val3 = ((IntField) t.getField(1)).getValue();
+                int aggValue = AggValue(val3, tup);
+                IntField newField = new IntField(aggValue);
+                t.setField(1, newField);
+                return;
+            }
+        }
+
+        /* Array of tuples is empty or does not have the group by element */
+        Tuple t = new Tuple(td);
+        if (gbField != -1){
+            t.setField(0, tup.getField(gbField));
+            t.setField(1, tup.getField(aField));
+            elementsInAggTups.add(tup.getField(gbField));
+        }
+        else{
+            t.setField(0,tup.getField(aField));
+        }
+        aggTups.add(t);
+        countMap.put(tup.getField(gbField), 1);
+        sumMap.put(tup.getField(gbField), ((IntField)tup.getField(aField)).getValue());
     }
 
     /**
@@ -46,9 +103,40 @@ public class IntegerAggregator implements Aggregator {
      *         the constructor.
      */
     public DbIterator iterator() {
-        // some code goes here
-        throw new
-        UnsupportedOperationException("please implement me for lab3");
+        return new TupleIterator(td, aggTups);
+    }
+
+    private boolean CheckIfGBElementExists(Tuple tup) {
+        if (gbField == -1) {
+            return true;
+        }
+
+        if (elementsInAggTups.contains(tup.getField(gbField))) {
+            return true;
+        }
+        return false;
+    }
+
+    private int AggValue(int existingValue, Tuple tup){
+        int currentValue = ((IntField) tup.getField(aField)).getValue();
+        switch(op) {
+            case COUNT:
+                return existingValue + 1;
+            case MIN:
+                return existingValue < currentValue ? existingValue : currentValue;
+            case MAX:
+                return existingValue > currentValue ? existingValue : currentValue;
+            case SUM:
+                return existingValue + currentValue;
+            case AVG:
+                Field tupField = tup.getField(gbField);
+                int curCount = countMap.get(tupField) + 1;
+                int curSum = sumMap.get(tupField) + currentValue;
+                countMap.put(tupField, curCount);
+                sumMap.put(tupField, curSum);
+                return curSum/curCount;
+        }
+        return -1;
     }
 
 }

@@ -9,6 +9,8 @@ public class Filter extends Operator {
 
     private static final long serialVersionUID = 1L;
 
+    private Predicate filterPredicate;
+    private DbIterator filterChild;
     /**
      * Constructor accepts a predicate to apply and a child operator to read
      * tuples to filter from.
@@ -19,30 +21,31 @@ public class Filter extends Operator {
      *            The child operator
      */
     public Filter(Predicate p, DbIterator child) {
-        // some code goes here
+        filterPredicate = p;
+        filterChild = child;
     }
 
     public Predicate getPredicate() {
-        // some code goes here
-        return null;
+        return filterPredicate;
     }
 
     public TupleDesc getTupleDesc() {
-        // some code goes here
-        return null;
+        return filterChild.getTupleDesc();
     }
 
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        // some code goes here
+        filterChild.open();
+        super.open();
     }
 
     public void close() {
-        // some code goes here
+        super.close();
+        filterChild.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        filterChild.rewind();
     }
 
     /**
@@ -56,19 +59,24 @@ public class Filter extends Operator {
      */
     protected Tuple fetchNext() throws NoSuchElementException,
             TransactionAbortedException, DbException {
-        // some code goes here
+        while(filterChild.hasNext()){
+            Tuple t = filterChild.next();
+            if (filterPredicate.filter(t))
+                return t;
+        }
         return null;
     }
 
     @Override
     public DbIterator[] getChildren() {
-        // some code goes here
-        return null;
+        return new DbIterator[] { filterChild };
     }
 
     @Override
     public void setChildren(DbIterator[] children) {
-        // some code goes here
+        if(children.length > 0){
+            filterChild = children[0];
+        }
     }
 
 }
