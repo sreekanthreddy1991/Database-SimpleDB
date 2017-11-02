@@ -99,6 +99,7 @@ public class HeapFile implements DbFile {
         RandomAccessFile dbFile = new RandomAccessFile(this.file, "rws");
         dbFile.skipBytes(pageNumber * pageSize);
         dbFile.write(pageData);
+        dbFile.close();
     }
 
     /**
@@ -114,17 +115,42 @@ public class HeapFile implements DbFile {
     // see DbFile.java for javadocs
     public ArrayList<Page> insertTuple(TransactionId tid, Tuple t)
             throws DbException, IOException, TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+        int totalPages = numPages();
+        ArrayList pagesChanged = new ArrayList(1);
+        for(int i =0; i< totalPages; i++){
+            HeapPageId pid = new HeapPageId(this.getId(), i);
+            HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid, pid, Permissions.READ_WRITE);
+            if(page.getNumEmptySlots() > 0){
+                try {
+                    page.insertTuple(t);
+                    pagesChanged.add(page);
+                    return pagesChanged;
+                } catch (Exception e){
+                    throw new DbException("Tuple can not be inserted");
+                }
+            }
+        }
+        HeapPageId newPageId = new HeapPageId(this.getId(), totalPages);
+        HeapPage newPage = new HeapPage(newPageId, HeapPage.createEmptyPageData());
+        newPage.insertTuple(t);
+        this.writePage(newPage);
+        pagesChanged.add(newPage);
+        return pagesChanged;
     }
 
     // see DbFile.java for javadocs
     public ArrayList<Page> deleteTuple(TransactionId tid, Tuple t) throws DbException,
             TransactionAbortedException {
-        // some code goes here
-        return null;
-        // not necessary for lab1
+        RecordId recordId = t.getRecordId();
+        PageId  pageId = recordId.getPageId();
+        List pagesChanged = new ArrayList();
+        if(pageId.getTableId() == getId()) {
+            HeapPage page = (HeapPage) Database.getBufferPool().getPage(tid, pageId, Permissions.READ_WRITE);
+            page.deleteTuple(t);
+            pagesChanged.add(page);
+            return (ArrayList<Page>) pagesChanged;
+        }
+        throw new DbException("record table id does not match with file id");
     }
 
     // see DbFile.java for javadocs
