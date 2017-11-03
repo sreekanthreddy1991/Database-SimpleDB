@@ -9,6 +9,14 @@ public class HashEquiJoin extends Operator {
 
     private static final long serialVersionUID = 1L;
 
+    private JoinPredicate p;
+    private DbIterator child1, child2;
+    private TupleDesc td1, td2 , tdMerged;
+    private ArrayList<Tuple> mergedTups = new ArrayList<Tuple>();
+    private Map<Object, ArrayList<Tuple>> data = new HashMap<Object, ArrayList<Tuple>>();
+    private Tuple tuple1 = null;
+    private Tuple tuple2 = null;
+
     /**
      * Constructor. Accepts to children to join and the predicate to join them
      * on
@@ -21,42 +29,63 @@ public class HashEquiJoin extends Operator {
      *            Iterator for the right(inner) relation to join
      */
     public HashEquiJoin(JoinPredicate p, DbIterator child1, DbIterator child2) {
-        // some code goes here
+        this.p = p;
+        this.child1 = child1;
+        this.child2 = child2;
+        td1 = child1.getTupleDesc();
+        td2 = child2.getTupleDesc();
+        tdMerged = TupleDesc.merge(td1,td2);
     }
 
     public JoinPredicate getJoinPredicate() {
         // some code goes here
-        return null;
+        return p;
     }
 
     public TupleDesc getTupleDesc() {
         // some code goes here
-        return null;
+        return tdMerged;
     }
     
     public String getJoinField1Name()
     {
         // some code goes here
-	return null;
+	return td1.getFieldName(p.getField1());
     }
 
     public String getJoinField2Name()
     {
         // some code goes here
-        return null;
+        return td2.getFieldName(p.getField2());
     }
     
     public void open() throws DbException, NoSuchElementException,
             TransactionAbortedException {
-        // some code goes here
+        super.open();
+        child1.open();
+        child2.open();
+        while(child2.hasNext()){
+            Tuple tuple = child2.next();
+            Field field2 = tuple.getField(p.getField2());
+            if(data.containsKey(field2)){
+                List list = data.get(field2);
+                list.add(tuple);
+            } else {
+                data.put(field2, new ArrayList<>(Arrays.asList(tuple)));
+            }
+        }
     }
 
     public void close() {
-        // some code goes here
+        super.close();
+        tuple1 = null;
+        child1.close();
+        child2.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        // some code goes here
+        child1.rewind();
+        child2.rewind();
     }
 
     transient Iterator<Tuple> listIt = null;
@@ -80,7 +109,25 @@ public class HashEquiJoin extends Operator {
      * @see JoinPredicate#filter
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        // some code goes here
+        if(listIt!=null && listIt.hasNext()){
+            tuple2 = listIt.next();
+            Tuple tuple3 = new Tuple(tdMerged);
+            int td1NumFields = td1.numFields();
+            for (int i = 0; i < td1NumFields; i++)
+                tuple3.setField(i, tuple1.getField(i));
+            for (int i = td1NumFields; i < tdMerged.numFields(); i++)
+                tuple3.setField(i, tuple2.getField(i - td1NumFields));
+            return tuple3;
+        }
+        while(child1.hasNext()){
+            tuple1 = child1.next();
+            Field field1 = tuple1.getField(p.getField1());
+            if(data.containsKey(field1)){
+                listIt = data.get(field1).iterator();
+            } else {
+                continue;
+            }
+        }
         return null;
     }
 

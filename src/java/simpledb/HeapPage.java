@@ -333,7 +333,12 @@ public class HeapPage implements Page {
      * Abstraction to fill or clear a slot on this page.
      */
     private void markSlotUsed(int i, boolean value) {
-
+        int byteNum = i / 8;
+        int bitNum = i % 8;
+        // ^ = exclusive or
+        if (isSlotUsed(i) ^ value){
+            header[byteNum] ^= (1 << bitNum);
+        }
     }
 
     /**
