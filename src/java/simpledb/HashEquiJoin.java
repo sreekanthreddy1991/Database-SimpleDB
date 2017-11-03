@@ -110,25 +110,30 @@ public class HashEquiJoin extends Operator {
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
         if(listIt!=null && listIt.hasNext()){
-            tuple2 = listIt.next();
-            Tuple tuple3 = new Tuple(tdMerged);
-            int td1NumFields = td1.numFields();
-            for (int i = 0; i < td1NumFields; i++)
-                tuple3.setField(i, tuple1.getField(i));
-            for (int i = td1NumFields; i < tdMerged.numFields(); i++)
-                tuple3.setField(i, tuple2.getField(i - td1NumFields));
-            return tuple3;
+            return nextTuple();
         }
         while(child1.hasNext()){
             tuple1 = child1.next();
             Field field1 = tuple1.getField(p.getField1());
             if(data.containsKey(field1)){
                 listIt = data.get(field1).iterator();
+                return nextTuple();
             } else {
                 continue;
             }
         }
         return null;
+    }
+
+    private Tuple nextTuple() {
+        tuple2 = listIt.next();
+        Tuple tuple3 = new Tuple(tdMerged);
+        int td1NumFields = td1.numFields();
+        for (int i = 0; i < td1NumFields; i++)
+            tuple3.setField(i, tuple1.getField(i));
+        for (int i = td1NumFields; i < tdMerged.numFields(); i++)
+            tuple3.setField(i, tuple2.getField(i - td1NumFields));
+        return tuple3;
     }
 
     @Override
