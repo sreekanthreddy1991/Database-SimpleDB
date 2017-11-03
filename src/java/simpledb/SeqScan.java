@@ -110,6 +110,7 @@ public class SeqScan implements DbIterator {
             tdItem = iterator.next();
             typeArr[index] = tdItem.fieldType;
             namesArr[index] = tableAlias + "." + tdItem.fieldName;
+            index++;
         }
         return new TupleDesc(typeArr, namesArr);
     }

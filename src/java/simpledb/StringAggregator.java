@@ -13,10 +13,8 @@ public class StringAggregator implements Aggregator {
     private Type gbFieldType;
     private Aggregator.Op op;
     private ArrayList<Tuple> aggTups = new ArrayList<Tuple>();
-    private HashSet<Field> elementsInAggTups = new HashSet<Field>();
-    private HashMap<Field, Integer> countMap = new HashMap<Field, Integer>();
-    private HashMap<Field, Integer> sumMap = new HashMap<Field, Integer>();
     private TupleDesc td;
+    private int OutputAggField, OutputGBField;
 
     /**
      * Aggregate constructor
@@ -32,13 +30,17 @@ public class StringAggregator implements Aggregator {
         this.gbFieldType = gbfieldtype;
         this.aField = afield;
         this.op = what;
-        if(gbfield != -1){
-            Type[] types = new Type[] {Type.INT_TYPE, Type.INT_TYPE};
+        if(gbfield != Aggregator.NO_GROUPING){
+            Type[] types = new Type[] {gbFieldType, Type.INT_TYPE};
             td = new TupleDesc(types);
+            OutputAggField = 1;
+            OutputGBField = 0;
         }
         else{
             Type[] types = new Type[] {Type.INT_TYPE};
             td = new TupleDesc(types);
+            OutputAggField = 0;
+            OutputGBField = -1;
         }
     }
 
@@ -51,35 +53,37 @@ public class StringAggregator implements Aggregator {
 
         while (it.hasNext()) {
             Tuple t = it.next();
-            if(gbField == -1) {
-                int val3 = ( (IntField) t.getField(0) ).getValue();
-                int aggValue = AggValue(val3);
-                IntField newField = new IntField(aggValue);
-                t.setField(0, newField);
+
+            if(gbField == Aggregator.NO_GROUPING) {
+                int val = ( (IntField) t.getField(OutputAggField)).getValue();
+                IntField newField = new IntField(AggValue(val));
+                t.setField(OutputAggField, newField);
                 return;
             }
 
-            int val1 = ((IntField) t.getField(0)).getValue();
-            int val2 = ((IntField) tup.getField(gbField)).getValue();
-            if (val1 == val2) {
-                int val3 = ((IntField) t.getField(1)).getValue();
-                int aggValue = AggValue(val3);
-                IntField newField = new IntField(aggValue);
-                t.setField(1, newField);
+            Field f1 = t.getField(OutputGBField);
+            Field f2 = tup.getField(gbField);
+            if (f1.equals(f2)) {
+                int val = ((IntField) t.getField(OutputAggField)).getValue();
+                IntField newField = new IntField(AggValue(val));
+                t.setField(OutputAggField, newField);
                 return;
             }
         }
 
         /* Array of tuples is empty or does not have the group by element */
         Tuple t = new Tuple(td);
-        IntField tempField = new IntField(1);
-        if (gbField != -1){
-            t.setField(0, tup.getField(gbField));
-            t.setField(1, tempField);
-            elementsInAggTups.add(tup.getField(gbField));
+        Field initialField;
+        if (op == Op.COUNT)
+            initialField = new IntField(1);
+        else
+            initialField = tup.getField(aField);
+        if (gbField != Aggregator.NO_GROUPING){
+            t.setField(OutputGBField, tup.getField(gbField));
+            t.setField(OutputAggField, initialField);
         }
         else{
-            t.setField(0,tempField);
+            t.setField(OutputAggField, initialField);
         }
         aggTups.add(t);
 }
@@ -94,17 +98,6 @@ public class StringAggregator implements Aggregator {
      */
     public DbIterator iterator() {
         return new TupleIterator(td, aggTups);
-    }
-
-    private boolean CheckIfGBElementExists(Tuple tup) {
-        if (gbField == -1) {
-            return true;
-        }
-
-        if (elementsInAggTups.contains(tup.getField(gbField))) {
-            return true;
-        }
-        return false;
     }
 
     private int AggValue(int existingValue){
