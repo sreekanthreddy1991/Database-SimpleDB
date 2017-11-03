@@ -12,8 +12,8 @@ public class Join extends Operator {
     private JoinPredicate p;
     private DbIterator child1, child2;
     private TupleDesc td1, td2 , tdMerged;
-    private Iterator<Tuple> it;
-    private ArrayList<Tuple> mergedTups = new ArrayList<Tuple>();
+    private Tuple t1 = null;
+    private Tuple t2 = null;
 
     /**
      * Constructor. Accepts to children to join and the predicate to join them
@@ -69,33 +69,18 @@ public class Join extends Operator {
             TransactionAbortedException {
         child1.open();
         child2.open();
-        while(child1.hasNext()) {
-            Tuple t1 = child1.next();
-            while (child2.hasNext()) {
-                Tuple t2 = child2.next();
-                if (p.filter(t1, t2)) {
-                    Tuple t3 = new Tuple(tdMerged);
-                    int td1NumFields = td1.numFields();
-                    for (int i = 0; i < td1NumFields; i++)
-                        t3.setField(i, t1.getField(i));
-                    for (int i = td1NumFields; i < tdMerged.numFields(); i++)
-                        t3.setField(i, t2.getField(i - td1NumFields));
-                    mergedTups.add(t3);
-                }
-            }
-            child2.rewind();
-        }
-        it = mergedTups.iterator();
         super.open();
     }
 
     public void close() {
         super.close();
-        it = null;
+        child1.close();
+        child2.close();
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        it = mergedTups.iterator();
+        child1.rewind();
+        child2.rewind();
     }
 
     /**
@@ -117,10 +102,29 @@ public class Join extends Operator {
      * @see JoinPredicate#filter
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        if (it != null && it.hasNext()) {
-            return it.next();
-        } else
-            return null;
+        if (child2.hasNext() && t1 != null){
+            t2 = child2.next();
+            if(p.filter(t1,t2))
+                return GetMergedTuple(t1,t2);
+            else
+                return fetchNext();
+        }
+        if (child1.hasNext()){
+            t1 = child1.next();
+            child2.rewind();
+            return fetchNext();
+        }
+        return null;
+    }
+
+    private Tuple GetMergedTuple(Tuple x, Tuple y){
+        Tuple t = new Tuple(tdMerged);
+        int xNumFields = td1.numFields();
+        for (int i = 0; i < xNumFields; i++)
+            t.setField(i, x.getField(i));
+        for (int i = xNumFields; i < tdMerged.numFields(); i++)
+            t.setField(i, y.getField(i - xNumFields));
+        return t;
     }
 
     @Override
