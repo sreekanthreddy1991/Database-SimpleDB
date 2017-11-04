@@ -1,0 +1,15 @@
+Filter.java and JoinPredicate.java
+1. We have modelled these on the lines of {OrderBy.java, Project.java} and Predicate.java respectively. 
+
+Join.java
+1. The nested loop implementation has been done in fetchnext() and the state of the child iterators persists unless they are rewinded. Initially, we have done the nested loop implementation in open() and stored all the merged tuples in an array, but decided to go with the implementation in fetchnext(), as the former method involved huge overhead to caclulate all the tuples at once.
+
+HashEquiJoin.java
+1. We implemented a hash map data structure to store the list of tuples from child 2 having the same value for a given field. Then each tuple in child 1, if there is a key in the map with the given value, then we return the iterator to the list. After this, we are returning the merged tuple from child1 and child2.
+
+IntegerAggregator.java and StringAggregator.java
+1. We are using an array of aggregated tuples to store groupByfields (if grouping is enabled) and modify the aggregate value of that tuple. For the average function, we are using two hashmaps to mantain the running count and sum per group by field.
+
+
+
+ 
