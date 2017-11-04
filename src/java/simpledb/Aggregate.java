@@ -48,12 +48,14 @@ public class Aggregate extends Operator {
         if (gfield != Aggregator.NO_GROUPING) {
             gFieldType = inTd.getFieldType(gfield);
             Type[] types = new Type[]{gFieldType, Type.INT_TYPE};
-            outTd = new TupleDesc(types);
+            String[] names = new String[] {inTd.getFieldName(gfield), aop.toString() + "(" + inTd.getFieldName(afield) + ")"};
+            outTd = new TupleDesc(types, names);
         }
         else {
             gFieldType = null;
             Type[] types = new Type[] {Type.INT_TYPE};
-            outTd = new TupleDesc(types);
+            String[] names = new String[] {aop.toString() + "(" + inTd.getFieldName(afield) + ")"};
+            outTd = new TupleDesc(types, names);
         }
 
         if (inTd.getFieldType(afield) == Type.INT_TYPE)
