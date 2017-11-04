@@ -10,6 +10,9 @@ HashEquiJoin.java
 IntegerAggregator.java and StringAggregator.java
 1. We are using an array of aggregated tuples to store groupByfields (if grouping is enabled) and modify the aggregate value of that tuple. For the average function, we are using two hashmaps to mantain the running count and sum per group by field.
 
+Aggregate.java
+1. We are calculating all the aggregated values in open() function as doing this is fetchnext() seemed impossible, since fetchnext() is supposed to iterate over the aggregated tuples and not the child tuples.
+
 
 
  
