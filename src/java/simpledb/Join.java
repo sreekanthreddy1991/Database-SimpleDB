@@ -69,6 +69,8 @@ public class Join extends Operator {
             TransactionAbortedException {
         child1.open();
         child2.open();
+        if(child1.hasNext())
+            t1 = child1.next();
         super.open();
     }
 
@@ -76,13 +78,13 @@ public class Join extends Operator {
         super.close();
         child1.close();
         child2.close();
+        t1 = null;
+        t2 = null;
     }
 
     public void rewind() throws DbException, TransactionAbortedException {
-        child1.rewind();
-        child2.rewind();
-        t1 = null;
-        t2 = null;
+        this.close();
+        this.open();
     }
 
     /**
@@ -104,17 +106,18 @@ public class Join extends Operator {
      * @see JoinPredicate#filter
      */
     protected Tuple fetchNext() throws TransactionAbortedException, DbException {
-        if (child2.hasNext() && t1 != null){
-            t2 = child2.next();
-            if(p.filter(t1,t2))
-                return GetMergedTuple(t1,t2);
-            else
-                return fetchNext();
-        }
-        if (child1.hasNext()){
-            t1 = child1.next();
+        while(t1 != null) {
+            while (child2.hasNext()) {
+                t2 = child2.next();
+                if (p.filter(t1, t2)) {
+                    return GetMergedTuple(t1, t2);
+                }
+            }
             child2.rewind();
-            return fetchNext();
+            if(child1.hasNext())
+                t1 = child1.next();
+            else
+                t1 = null;
         }
         return null;
     }
