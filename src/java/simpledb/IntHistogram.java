@@ -74,41 +74,46 @@ public class IntHistogram {
 
         switch(op){
             case EQUALS:
-                return selectivityForEquality(relevantBucket);
+                return selectivityForEquality(relevantBucket, false);
             case NOT_EQUALS:
-                return 1 - selectivityForEquality(relevantBucket);
+                return 1 - selectivityForEquality(relevantBucket, false);
             case GREATER_THAN:
                 return selectivityForGreaterThan(relevantBucket, valueToSearch);
             case GREATER_THAN_OR_EQ:
-                return selectivityForEquality(relevantBucket) + selectivityForGreaterThan(relevantBucket, valueToSearch);
+                return selectivityForEquality(relevantBucket,false) + selectivityForGreaterThan(relevantBucket, valueToSearch);
             case LESS_THAN:
-                return 1 - (selectivityForEquality(relevantBucket) + selectivityForGreaterThan(relevantBucket, valueToSearch));
+                return 1 - (selectivityForEquality(relevantBucket,false) + selectivityForGreaterThan(relevantBucket, valueToSearch));
             case LESS_THAN_OR_EQ:
                 return 1 - selectivityForGreaterThan(relevantBucket, valueToSearch);
         }
         return 0;
     }
 
-    private double selectivityForEquality(int relevantBucket){
+    private double selectivityForEquality(int relevantBucket, boolean findTotalArea){
         if(histMap.get(relevantBucket) == null){
             return 0; // No bucket found
         }
         int heightOfBucket = histMap.get(relevantBucket);
-        double result =  (heightOfBucket/this.width)/numTups;
-        return result;
+        double width = 1;
+        if (findTotalArea) {
+            return ( heightOfBucket / width) / numTups;
+        }
+        else{
+            return ( heightOfBucket / this.width ) / numTups;
+        }
     }
 
     private double selectivityForGreaterThan(int relevantBucket, double v){
         if (relevantBucket > this.numBuckets - 1)
             return 0;
-        NavigableMap<Integer,Integer> lesserMap = histMap.headMap(relevantBucket, true);
-        int numBuckets = lesserMap.size();
-        double rightMostWidth = (numBuckets)*this.width;
+        if (relevantBucket < 0)
+            return 1;
+        double rightMostWidth = (relevantBucket + 1)*this.width;
         double relevantWidth = Math.min((rightMostWidth - v)/this.width, this.width);
-        double selectivity = selectivityForEquality(relevantBucket) * relevantWidth;
+        double selectivity = selectivityForEquality(relevantBucket,false) * relevantWidth;
         NavigableMap<Integer,Integer> greaterMap = histMap.tailMap(relevantBucket, false);
         for(Map.Entry<Integer, Integer> entry : greaterMap.entrySet()){
-            selectivity += selectivityForEquality(entry.getKey());
+            selectivity += selectivityForEquality(entry.getKey(),true);
         }
         return selectivity;
     }
