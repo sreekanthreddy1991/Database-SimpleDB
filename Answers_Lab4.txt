@@ -1,7 +1,7 @@
 IntHistogram.java
-1. First, we shifted all the data by min, so that data from (max,min) is now (max-min,0). by shifting the data, we can ignore any special cases for negative values.Then, the bucket width was computed as a double value. We did not use an integer value for width since, it may not give correct selectivity results. As an example, for the data d1(0,11) with 4 buckets and data d2(0,9) with four buckets, if width was chosen as 3 instead of 2.5, then the selectivty for (x>6) for d1 would be the same as (x>6) for d2. If the widht is chosen as 2.5, then there is a better approximation of selectivity to the true value. 
+1. First, we shifted all the data by min, so that data from (max,min) is now (max-min,0). by shifting the data, we can ignore any special cases for negative values.Then, the bucket width was computed as a double value. We did not use an integer value for width since, the last bin would not be a good representation of the data.  
 2. Whenever a value needs to be added or searched for, it is always shifted by min so that the new value is now (value - min) according to our scale. 
-3. Equality and Greaterthan are implemented and all the other operators are derived from these two operations.
+3. Equality and Greater than are implemented and all the other operators are derived from these two operations.
 4. For the greater than operation, the fractional part is computed using the equality result * (number of integers in fractional width).
 
 TableStats.java
