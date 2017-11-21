@@ -1,8 +1,19 @@
 package simpledb;
 
+import java.awt.geom.QuadCurve2D;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.SortedMap;
+import java.util.TreeMap;
+import java.lang.*;
+
 /** A class to represent a fixed-width histogram over a single integer-based field.
  */
 public class IntHistogram {
+
+    private double numBuckets, min, max, width;
+    private int numTups = 0;
+    private TreeMap<Integer,Integer> histMap = new TreeMap<Integer, Integer>();
 
     /**
      * Create a new IntHistogram.
@@ -21,7 +32,15 @@ public class IntHistogram {
      * @param max The maximum integer value that will ever be passed to this class for histogramming
      */
     public IntHistogram(int buckets, int min, int max) {
-    	// some code goes here
+    	numBuckets = buckets;
+    	this.min = min;
+    	this.max = max;
+        this.width = (max - min + 1)/numBuckets;
+    	int bucketNum = 0;
+    	while(bucketNum < buckets){
+    	    histMap.put(bucketNum, 0);
+    	    bucketNum++;
+        }
     }
 
     /**
@@ -29,7 +48,14 @@ public class IntHistogram {
      * @param v Value to add to the histogram
      */
     public void addValue(int v) {
-    	// some code goes here
+    	double valueToAdd = v;
+    	int bucketNum = (int)((valueToAdd - this.min)/this.width);
+    	if(bucketNum > this.numBuckets - 1 || bucketNum < 0) {
+            return;
+        }
+       	int currentBucketCount = histMap.get(bucketNum);
+    	histMap.put(bucketNum, currentBucketCount + 1);
+    	numTups++;
     }
 
     /**
@@ -43,9 +69,48 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
+        double valueToSearch = v;
+        int relevantBucket = (int)((valueToSearch - this.min)/this.width);
 
-    	// some code goes here
-        return -1.0;
+        switch(op){
+            case EQUALS:
+                return selectivityForEquality(relevantBucket);
+            case NOT_EQUALS:
+                return 1 - selectivityForEquality(relevantBucket);
+            case GREATER_THAN:
+                return selectivityForGreaterThan(relevantBucket, valueToSearch);
+            case GREATER_THAN_OR_EQ:
+                return selectivityForEquality(relevantBucket) + selectivityForGreaterThan(relevantBucket, valueToSearch);
+            case LESS_THAN:
+                return 1 - (selectivityForEquality(relevantBucket) + selectivityForGreaterThan(relevantBucket, valueToSearch));
+            case LESS_THAN_OR_EQ:
+                return 1 - selectivityForGreaterThan(relevantBucket, valueToSearch);
+        }
+        return 0;
+    }
+
+    private double selectivityForEquality(int relevantBucket){
+        if(histMap.get(relevantBucket) == null){
+            return 0; // No bucket found
+        }
+        int heightOfBucket = histMap.get(relevantBucket);
+        double result =  (heightOfBucket/this.width)/numTups;
+        return result;
+    }
+
+    private double selectivityForGreaterThan(int relevantBucket, double v){
+        if (relevantBucket > this.numBuckets - 1)
+            return 0;
+        NavigableMap<Integer,Integer> lesserMap = histMap.headMap(relevantBucket, true);
+        int numBuckets = lesserMap.size();
+        double rightMostWidth = (numBuckets)*this.width;
+        double relevantWidth = Math.min((rightMostWidth - v)/this.width, this.width);
+        double selectivity = selectivityForEquality(relevantBucket) * relevantWidth;
+        NavigableMap<Integer,Integer> greaterMap = histMap.tailMap(relevantBucket, false);
+        for(Map.Entry<Integer, Integer> entry : greaterMap.entrySet()){
+            selectivity += selectivityForEquality(entry.getKey());
+        }
+        return selectivity;
     }
     
     /**
