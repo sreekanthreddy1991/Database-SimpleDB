@@ -69,37 +69,32 @@ public class IntHistogram {
      * @return Predicted selectivity of this particular operator and value
      */
     public double estimateSelectivity(Predicate.Op op, int v) {
-        double valueToSearch = v;
-        int relevantBucket = (int)((valueToSearch - this.min)/this.width);
+        double valueToSearch = v - this.min;
+        int relevantBucket = (int)((valueToSearch)/this.width);
 
         switch(op){
             case EQUALS:
-                return selectivityForEquality(relevantBucket, false);
+                return selectivityForEquality(relevantBucket);
             case NOT_EQUALS:
-                return 1 - selectivityForEquality(relevantBucket, false);
+                return 1 - selectivityForEquality(relevantBucket);
             case GREATER_THAN:
                 return selectivityForGreaterThan(relevantBucket, valueToSearch);
             case GREATER_THAN_OR_EQ:
-                return selectivityForEquality(relevantBucket,false) + selectivityForGreaterThan(relevantBucket, valueToSearch);
+                return selectivityForEquality(relevantBucket) + selectivityForGreaterThan(relevantBucket, valueToSearch);
             case LESS_THAN:
-                return 1 - (selectivityForEquality(relevantBucket,false) + selectivityForGreaterThan(relevantBucket, valueToSearch));
+                return 1 - (selectivityForEquality(relevantBucket) + selectivityForGreaterThan(relevantBucket, valueToSearch));
             case LESS_THAN_OR_EQ:
                 return 1 - selectivityForGreaterThan(relevantBucket, valueToSearch);
         }
         return 0;
     }
 
-    private double selectivityForEquality(int relevantBucket, boolean findTotalArea){
+    private double selectivityForEquality(int relevantBucket){
         if(histMap.get(relevantBucket) == null){
             return 0; // No bucket found
         }
         int heightOfBucket = histMap.get(relevantBucket);
-        double width = 1;
-        if (findTotalArea) {
-            return ( heightOfBucket / Math.ceil(this.width) ) / numTups;
-        }else{
-            return ( heightOfBucket / Math.ceil(this.width)) / numTups;
-        }
+        return (heightOfBucket / Math.ceil(this.width)) / numTups;
     }
 
     private double selectivityForGreaterThan(int relevantBucket, double v){
@@ -108,11 +103,11 @@ public class IntHistogram {
         if (relevantBucket < 0)
             return 1;
         double rightMostWidth = (relevantBucket + 1)*this.width;
-        double relevantWidth = Math.floor(rightMostWidth - v);
-        double selectivity = selectivityForEquality(relevantBucket,true) * (relevantWidth);
+        double relevantWidth = Math.ceil(rightMostWidth) - v - 1;
+        double selectivity = selectivityForEquality(relevantBucket) * (relevantWidth);
         NavigableMap<Integer,Integer> greaterMap = histMap.tailMap(relevantBucket, false);
         for(Map.Entry<Integer, Integer> entry : greaterMap.entrySet()){
-            selectivity += selectivityForEquality(entry.getKey(),true);
+            selectivity += selectivityForEquality(entry.getKey());
         }
         return selectivity;
     }
