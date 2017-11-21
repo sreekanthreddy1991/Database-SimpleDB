@@ -96,10 +96,9 @@ public class IntHistogram {
         int heightOfBucket = histMap.get(relevantBucket);
         double width = 1;
         if (findTotalArea) {
-            return ( heightOfBucket / width) / numTups;
-        }
-        else{
-            return ( heightOfBucket / this.width ) / numTups;
+            return ( heightOfBucket / Math.ceil(this.width) ) / numTups;
+        }else{
+            return ( heightOfBucket / Math.ceil(this.width)) / numTups;
         }
     }
 
@@ -109,8 +108,8 @@ public class IntHistogram {
         if (relevantBucket < 0)
             return 1;
         double rightMostWidth = (relevantBucket + 1)*this.width;
-        double relevantWidth = Math.min((rightMostWidth - v)/this.width, this.width);
-        double selectivity = selectivityForEquality(relevantBucket,false) * relevantWidth;
+        double relevantWidth = Math.floor(rightMostWidth - v);
+        double selectivity = selectivityForEquality(relevantBucket,true) * (relevantWidth);
         NavigableMap<Integer,Integer> greaterMap = histMap.tailMap(relevantBucket, false);
         for(Map.Entry<Integer, Integer> entry : greaterMap.entrySet()){
             selectivity += selectivityForEquality(entry.getKey(),true);
