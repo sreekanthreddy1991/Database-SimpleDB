@@ -165,12 +165,14 @@ public class HeapFile implements DbFile {
         private TransactionId transactionId;
         private Iterator<Tuple> iterator;
         private Integer currentPage;
+        private int numPages;
 
         public HeapFileIterator(HeapFile heapFile, TransactionId tId){
             this.heapFile = heapFile;
             transactionId = tId;
             currentPage = null;
             iterator = null;
+            numPages = numPages();
         }
 
 
@@ -183,7 +185,7 @@ public class HeapFile implements DbFile {
         @Override
         public boolean hasNext() throws DbException, TransactionAbortedException {
             if (currentPage != null) {
-                while (currentPage < numPages() - 1) {
+                while (currentPage < numPages - 1) {
                     if (iterator.hasNext()) {
                         return true;
                     } else {
