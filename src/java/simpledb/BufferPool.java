@@ -428,8 +428,11 @@ public class BufferPool {
     /** Write all pages of the specified transaction to disk.
      */
     public synchronized  void flushPages(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        if(ccControl.xactPageMap.containsKey(tid)){
+            ArrayList<PageId> pagesToBeFlushed = ccControl.xactPageMap.get(tid);
+            for (PageId pidToBeFlushed : pagesToBeFlushed)
+                flushPage(pidToBeFlushed);
+        }
     }
 
     /**

@@ -1,7 +1,5 @@
 package simpledb;
 
-import com.sun.deploy.security.ValidationState;
-
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
