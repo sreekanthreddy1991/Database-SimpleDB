@@ -98,6 +98,16 @@ class ConcurrencyControl{
         }
     }
 
+    public synchronized void releaseAllLocksForTransaction(TransactionId tid){
+        if(xactPageMap.containsKey(tid)){
+            PageId[] pages = new PageId[xactPageMap.get(tid).size()];
+            PageId[] pagesToRelease = xactPageMap.get(tid).toArray(pages);
+            for(PageId pid: pagesToRelease){
+                releaseLock(tid, pid);
+            }
+        }
+    }
+
     public synchronized boolean holdsLock(TransactionId tid, PageId pid) {
         if (xactPageMap.containsKey(tid)) {
             if (xactPageMap.get(tid).contains(pid)) {
@@ -219,14 +229,15 @@ public class BufferPool {
         }
 
         public Page evictPage(){
-            int bufferSize = map.size();
-            if(bufferSize > 0 && bufferSize == this.capacity){
-                Map.Entry<PageId, Node> entry = map.entrySet().iterator().next();
+            for(Map.Entry<PageId, Node> entry: map.entrySet()){
                 PageId key = entry.getKey();
                 Node oldPage = entry.getValue();
-                remove(oldPage);
-                return oldPage.page;
+                if(oldPage.page.isDirty()==null){
+                    remove(oldPage);
+                    return oldPage.page;
+                }
             }
+
             return null;
         }
 
@@ -318,8 +329,7 @@ public class BufferPool {
      * @param tid the ID of the transaction requesting the unlock
      */
     public void transactionComplete(TransactionId tid) throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        transactionComplete(tid, true);
     }
 
     /** Return true if the specified transaction has a lock on the specified page */
@@ -336,20 +346,29 @@ public class BufferPool {
      */
     public void transactionComplete(TransactionId tid, boolean commit)
             throws IOException {
-        // some code goes here
-        // not necessary for lab1|lab2
+        List<PageId> transactionLockedPages = ccControl.xactPageMap.get(tid);
+        if(transactionLockedPages!=null){
+            for(PageId pageId: transactionLockedPages){
+                if(commit){
+                    flushPage(pageId);
+                } else if(pageBufferPool.get(pageId).isDirty()!=null){
+                    discardPage(pageId);
+                }
+            }
+        }
+        ccControl.releaseAllLocksForTransaction(tid);
     }
 
     /**
      * Add a tuple to the specified table on behalf of transaction tid.  Will
-     * acquire a write lock on the page the tuple is added to and any other 
-     * pages that are updated (Lock acquisition is not needed for lab2). 
+     * acquire a write lock on the page the tuple is added to and any other
+     * pages that are updated (Lock acquisition is not needed for lab2).
      * May block if the lock(s) cannot be acquired.
      *
      * Marks any pages that were dirtied by the operation as dirty by calling
-     * their markDirty bit, and adds versions of any pages that have 
-     * been dirtied to the cache (replacing any existing versions of those pages) so 
-     * that future requests see up-to-date pages. 
+     * their markDirty bit, and adds versions of any pages that have
+     * been dirtied to the cache (replacing any existing versions of those pages) so
+     * that future requests see up-to-date pages.
      *
      * @param tid the transaction adding the tuple
      * @param tableId the table to add the tuple to
@@ -371,9 +390,9 @@ public class BufferPool {
      * other pages that are updated. May block if the lock(s) cannot be acquired.
      *
      * Marks any pages that were dirtied by the operation as dirty by calling
-     * their markDirty bit, and adds versions of any pages that have 
-     * been dirtied to the cache (replacing any existing versions of those pages) so 
-     * that future requests see up-to-date pages. 
+     * their markDirty bit, and adds versions of any pages that have
+     * been dirtied to the cache (replacing any existing versions of those pages) so
+     * that future requests see up-to-date pages.
      *
      * @param tid the transaction deleting the tuple.
      * @param t the tuple to delete
@@ -396,6 +415,10 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // some code goes here
         // not necessary for lab1
+        Iterator<PageId> it = pageBufferPool.map.keySet().iterator();
+        while(it.hasNext()){
+            flushPage(it.next());
+        }
 
     }
 
@@ -410,6 +433,7 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
+        pageBufferPool.remove(pageBufferPool.map.get(pid));
     }
 
     /**
@@ -445,6 +469,8 @@ public class BufferPool {
         try {
             if(oldPage != null){
                 flushPage(oldPid);
+            } else{
+                throw new DbException("No dirty pages found to evict");
             }
         } catch (IOException e) {
             throw new DbException("Error while flushing a page with id " + oldPid);
