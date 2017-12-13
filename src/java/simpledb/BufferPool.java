@@ -43,7 +43,7 @@ class ConcurrencyControl{
             throws TransactionAbortedException{
         long start = System.currentTimeMillis();
         Random rand = new Random();
-        long timeout = rand.nextInt(5000);
+        long timeout = rand.nextInt(2000);
         while(true) {
             if (pageLockInfoMap.containsKey(pid)) {
                 if (pageLockInfoMap.get(pid).lockType == LockType.Slock) {
