@@ -23,7 +23,7 @@ class ConcurrencyControl{
     ConcurrentHashMap<TransactionId, ArrayList<PageId>> xactPageMap = new ConcurrentHashMap<TransactionId, ArrayList<PageId>>();
     ConcurrentHashMap<PageId, LockData> pageLockInfoMap = new ConcurrentHashMap<PageId, LockData>();
 
-    private synchronized void block(PageId pid, long start)
+    private synchronized void block(long start)
             throws TransactionAbortedException {
         long timeout = 5000;
         if (System.currentTimeMillis() - start > timeout) {
@@ -43,28 +43,37 @@ class ConcurrencyControl{
     public synchronized void acquireLock(TransactionId tid, PageId pid, LockType type)
             throws TransactionAbortedException{
         long start = System.currentTimeMillis();
-        if (pageLockInfoMap.containsKey(pid)){
-            if(pageLockInfoMap.get(pid).lockType == LockType.Slock){
-                if(type == LockType.Slock){
-                    pageLockInfoMap.get(pid).transactionsForThisPage.add(tid);
-                    updateXactPageMap(tid, pid);
-                }else{
-                    if((pageLockInfoMap.get(pid).transactionsForThisPage.size() == 1) && (pageLockInfoMap.get(pid).transactionsForThisPage.get(0) == tid) && (xactPageMap.containsKey(tid)) && (xactPageMap.get(tid).contains(pid))){
-                        pageLockInfoMap.get(pid).lockType = LockType.Xlock;
-                    }else{
-                        block(pid, start);
+        while(true) {
+            if (pageLockInfoMap.containsKey(pid)) {
+                if (pageLockInfoMap.get(pid).lockType == LockType.Slock) {
+                    if (type == LockType.Slock) {
+                        if (!( pageLockInfoMap.get(pid).transactionsForThisPage.contains(tid) )) {
+                            pageLockInfoMap.get(pid).transactionsForThisPage.add(tid);
+                        }
+                        updateXactPageMap(tid, pid);
+                        return;
+                    } else {
+                        if (( pageLockInfoMap.get(pid).transactionsForThisPage.size() == 1 ) && ( pageLockInfoMap.get(pid).transactionsForThisPage.get(0) == tid ) && ( xactPageMap.containsKey(tid) ) && ( xactPageMap.get(tid).contains(pid) )) {
+                            pageLockInfoMap.get(pid).lockType = LockType.Xlock;
+                            return;
+                        } else {
+                            block(start);
+                        }
                     }
+                } else {
+                    if (pageLockInfoMap.get(pid).transactionsForThisPage.get(0) != tid) {
+                        block(start);
+                    }
+                    else
+                        return;
                 }
-            }else{
-                if(pageLockInfoMap.get(pid).transactionsForThisPage.get(0) != tid){
-                    block(pid, start);
-                }
+            } else {
+                updateXactPageMap(tid, pid);
+                ArrayList<TransactionId> t = new ArrayList<TransactionId>();
+                t.add(tid);
+                pageLockInfoMap.put(pid, new LockData(type, t));
+                return;
             }
-        }else{
-            updateXactPageMap(tid, pid);
-            ArrayList<TransactionId> t = new ArrayList<TransactionId>();
-            t.add(tid);
-            pageLockInfoMap.put(pid, new LockData(type, t));
         }
     }
 
