@@ -246,9 +246,11 @@ public class BufferPool {
         }
     }
 
-    private PageBufferPool pageBufferPool;
+//    private PageBufferPool pageBufferPool;
 
     private ConcurrencyControl ccControl;
+
+    private ConcurrentHashMap<PageId, Page> pageBufferPool;
     /**
      * Creates a BufferPool that caches up to numPages pages.
      *
@@ -256,7 +258,7 @@ public class BufferPool {
      */
     public BufferPool(int numPages) {
         this.numPages = numPages;
-        pageBufferPool = new PageBufferPool(numPages);
+        pageBufferPool = new ConcurrentHashMap<PageId, Page>();
         ccControl = new ConcurrencyControl();
     }
 
@@ -305,7 +307,7 @@ public class BufferPool {
             if(pageBufferPool.size() >= numPages) {
                 evictPage();
             }
-            pageBufferPool.set(pid, page);
+            pageBufferPool.put(pid, page);
             return page;
         }
     }
@@ -351,7 +353,7 @@ public class BufferPool {
             for(PageId pageId: transactionLockedPages){
                 if(commit){
                     flushPage(pageId);
-                } else if(pageBufferPool.get(pageId).isDirty()!=null){
+                } else if(pageBufferPool.get(pageId)!=null && pageBufferPool.get(pageId).isDirty()!=null){
                     discardPage(pageId);
                 }
             }
@@ -380,7 +382,8 @@ public class BufferPool {
         List<Page> pagesDirtied = dbFile.insertTuple(tid, t);
         for (Page dirtyPage : pagesDirtied) {
             dirtyPage.markDirty(true, tid);
-            pageBufferPool.set(dirtyPage.getId(), dirtyPage);
+            pageBufferPool.remove(dirtyPage.getId());
+            pageBufferPool.put(dirtyPage.getId(), dirtyPage);
         }
     }
 
@@ -403,7 +406,8 @@ public class BufferPool {
         List<Page> pagesDirtied = dbFile.deleteTuple(tid, t);
         for(Page dirtyPage: pagesDirtied){
             dirtyPage.markDirty(true, tid);
-            pageBufferPool.set(dirtyPage.getId(), dirtyPage);
+            pageBufferPool.remove(dirtyPage.getId());
+            pageBufferPool.put(dirtyPage.getId(), dirtyPage);
         }
     }
 
@@ -415,9 +419,10 @@ public class BufferPool {
     public synchronized void flushAllPages() throws IOException {
         // some code goes here
         // not necessary for lab1
-        Iterator<PageId> it = pageBufferPool.map.keySet().iterator();
-        while(it.hasNext()){
-            flushPage(it.next());
+        Enumeration<PageId> it = pageBufferPool.keys();
+        Iterator<PageId> iterator = pageBufferPool.keySet().iterator();
+        while (iterator.hasNext()) {
+            flushPage(iterator.next());
         }
 
     }
@@ -433,7 +438,8 @@ public class BufferPool {
     public synchronized void discardPage(PageId pid) {
         // some code goes here
         // not necessary for lab1
-        pageBufferPool.remove(pageBufferPool.map.get(pid));
+//        pageBufferPool.remove(pageBufferPool.map.get(pid));
+        pageBufferPool.remove(pid);
     }
 
     /**
@@ -445,6 +451,7 @@ public class BufferPool {
             Page oldPage = pageBufferPool.get(pid);
             if(oldPage.isDirty()!= null){
                 Database.getCatalog().getDatabaseFile(pid.getTableId()).writePage(oldPage);
+                oldPage.markDirty(false, null);
             }
         }
     }
@@ -464,17 +471,17 @@ public class BufferPool {
      * Flushes the page to disk to ensure dirty pages are updated on disk.
      */
     private synchronized  void evictPage() throws DbException {
-        Page oldPage = pageBufferPool.evictPage();
-        PageId oldPid = oldPage.getId();
-        try {
-            if(oldPage != null){
-                flushPage(oldPid);
-            } else{
-                throw new DbException("No dirty pages found to evict");
+        for (Map.Entry<PageId, Page> entry : pageBufferPool.entrySet()) {
+            PageId pid = entry.getKey();
+            Page   p   = entry.getValue();
+            if (p.isDirty() == null) {
+                // dont need to flushpage since all page evicted are not dirty
+                // flushPage(pid);
+                discardPage(pid);
+                return;
             }
-        } catch (IOException e) {
-            throw new DbException("Error while flushing a page with id " + oldPid);
         }
+        throw new DbException("BufferPool: evictPage: all pages are marked as dirty");
     }
 
 }
