@@ -23,9 +23,8 @@ class ConcurrencyControl{
     ConcurrentHashMap<TransactionId, ArrayList<PageId>> xactPageMap = new ConcurrentHashMap<TransactionId, ArrayList<PageId>>();
     ConcurrentHashMap<PageId, LockData> pageLockInfoMap = new ConcurrentHashMap<PageId, LockData>();
 
-    private synchronized void block(long start)
+    private synchronized void block(long start, long timeout)
             throws TransactionAbortedException {
-        long timeout = 5000;
         if (System.currentTimeMillis() - start > timeout) {
             throw new TransactionAbortedException();
         }
@@ -43,6 +42,8 @@ class ConcurrencyControl{
     public synchronized void acquireLock(TransactionId tid, PageId pid, LockType type)
             throws TransactionAbortedException{
         long start = System.currentTimeMillis();
+        Random rand = new Random();
+        long timeout = rand.nextInt(5000);
         while(true) {
             if (pageLockInfoMap.containsKey(pid)) {
                 if (pageLockInfoMap.get(pid).lockType == LockType.Slock) {
@@ -57,12 +58,12 @@ class ConcurrencyControl{
                             pageLockInfoMap.get(pid).lockType = LockType.Xlock;
                             return;
                         } else {
-                            block(start);
+                            block(start, timeout);
                         }
                     }
                 } else {
                     if (pageLockInfoMap.get(pid).transactionsForThisPage.get(0) != tid) {
-                        block(start);
+                        block(start, timeout);
                     }
                     else
                         return;
