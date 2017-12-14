@@ -1,0 +1,5 @@
+Bufferpool.java
+1) We maintained two concurrent maps for storing transactions and locks. Although one map is sufficient, i.e. one with the key as transaction id and the value as a list of lock information containing page id of lock, type of lock. But with two maps, retrieval of information is easier. The first map maintains an array list of all page ids for a transaction and the second one maintains the information of all locks for a pageid.
+2) For eviction policy, we removed a random page whichever is not dirty. Previously we used LRU, but for this lab we felt this approach is relevant and easier.
+3) For deadlock, we used a timeout policy which aborts the transaction after a random time t (less than 2 sec). We wait for the locks to get released during the timeout. If the locks are released, a notify all signal is sent and the transaction can acquire them. If not we just send a transactionAborted exception, which is dealt with by the higher level code. 
+ 

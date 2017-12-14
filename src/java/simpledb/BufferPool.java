@@ -484,9 +484,7 @@ public class BufferPool {
         for (Map.Entry<PageId, Page> entry : pageBufferPool.entrySet()) {
             PageId pid = entry.getKey();
             Page   p   = entry.getValue();
-            if (p.isDirty() == null) {
-                // dont need to flushpage since all page evicted are not dirty
-                // flushPage(pid);
+            if (p.isDirty() == null) {                
                 discardPage(pid);
                 return;
             }
